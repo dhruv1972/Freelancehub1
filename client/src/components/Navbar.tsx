@@ -1,16 +1,18 @@
 import { Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userType, setUserType] = useState('')
 
-  // check if user is logged in from localStorage
-  useState(() => {
+  useEffect(() => {
     const user = localStorage.getItem('user')
     if (user) {
       setIsLoggedIn(true)
+      const parsed = JSON.parse(user)
+      setUserType(parsed.userType || '')
     }
-  })
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('user')
@@ -28,15 +30,24 @@ function Navbar() {
         
         <div className="flex gap-4 items-center">
           <Link to="/" className="hover:underline">Home</Link>
-          <Link to="/dashboard" className="hover:underline">Dashboard</Link>
+          <Link to="/search" className="hover:underline">Find Work</Link>
           
           {isLoggedIn ? (
-            <button 
-              onClick={handleLogout}
-              className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"
-            >
-              Logout
-            </button>
+            <>
+              <Link to="/dashboard" className="hover:underline">Dashboard</Link>
+              <Link to="/profile" className="hover:underline">Profile</Link>
+              {userType === 'client' && (
+                <Link to="/create-project" className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100">
+                  Post Project
+                </Link>
+              )}
+              <button 
+                onClick={handleLogout}
+                className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"
+              >
+                Logout
+              </button>
+            </>
           ) : (
             <>
               <Link to="/login" className="hover:underline">Login</Link>
@@ -55,4 +66,3 @@ function Navbar() {
 }
 
 export default Navbar
-
