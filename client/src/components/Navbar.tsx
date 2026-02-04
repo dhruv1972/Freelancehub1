@@ -35,12 +35,22 @@ function Navbar() {
           {isLoggedIn ? (
             <>
               <Link to="/dashboard" className="hover:underline">Dashboard</Link>
-              <Link to="/profile" className="hover:underline">Profile</Link>
+              <Link to="/messages" className="hover:underline">Messages</Link>
+              
+              {userType === 'freelancer' && (
+                <>
+                  <Link to="/my-proposals" className="hover:underline">My Proposals</Link>
+                  <Link to="/my-projects" className="hover:underline">My Projects</Link>
+                </>
+              )}
+              
               {userType === 'client' && (
                 <Link to="/create-project" className="bg-white text-blue-600 px-3 py-1 rounded hover:bg-gray-100">
                   Post Project
                 </Link>
               )}
+              
+              <Link to="/profile" className="hover:underline">Profile</Link>
               <button 
                 onClick={handleLogout}
                 className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"

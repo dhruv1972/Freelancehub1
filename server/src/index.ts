@@ -7,6 +7,8 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth';
 import projectRoutes from './routes/projects';
 import profileRoutes from './routes/profile';
+import proposalRoutes from './routes/proposals';
+import messageRoutes from './routes/messages';
 
 const app = express();
 
@@ -26,6 +28,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/proposals', proposalRoutes);
+app.use('/api/messages', messageRoutes);
 
 // connect to database and start server
 mongoose.connect(MONGODB_URI)
