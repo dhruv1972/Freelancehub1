@@ -9,6 +9,10 @@ import projectRoutes from './routes/projects';
 import profileRoutes from './routes/profile';
 import proposalRoutes from './routes/proposals';
 import messageRoutes from './routes/messages';
+import timeRoutes from './routes/time';
+import reviewRoutes from './routes/reviews';
+import adminRoutes from './routes/admin';
+import paymentRoutes from './routes/payments';
 
 const app = express();
 
@@ -30,6 +34,10 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/proposals', proposalRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/time', timeRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // connect to database and start server
 mongoose.connect(MONGODB_URI)

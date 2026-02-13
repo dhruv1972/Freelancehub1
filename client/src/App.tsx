@@ -12,6 +12,7 @@ import ProjectDetail from './pages/ProjectDetail'
 import MyProposals from './pages/MyProposals'
 import MyProjects from './pages/MyProjects'
 import Messages from './pages/Messages'
+import Admin from './pages/Admin'
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="/my-proposals" element={<MyProposals />} />
           <Route path="/my-projects" element={<MyProjects />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
       <Footer />
