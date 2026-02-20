@@ -13,6 +13,8 @@ import MyProposals from './pages/MyProposals'
 import MyProjects from './pages/MyProjects'
 import Messages from './pages/Messages'
 import Admin from './pages/Admin'
+import Notifications from './pages/Notifications'
+import SearchFreelancers from './pages/SearchFreelancers'
 
 function App() {
   return (
@@ -26,11 +28,13 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/find-freelancers" element={<SearchFreelancers />} />
           <Route path="/create-project" element={<CreateProject />} />
           <Route path="/project/:id" element={<ProjectDetail />} />
           <Route path="/my-proposals" element={<MyProposals />} />
           <Route path="/my-projects" element={<MyProjects />} />
           <Route path="/messages" element={<Messages />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
       </main>
