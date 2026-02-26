@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { api } from '../services/api'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -15,12 +16,13 @@ function Login() {
     setLoading(true)
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      localStorage.setItem('user', JSON.stringify({ email }))
-      localStorage.setItem('token', 'fake-token-123')
+      const res = await api.post('/auth/login', { email, password })
+      localStorage.setItem('user', JSON.stringify(res.data.user))
+      localStorage.setItem('token', res.data.token)
       navigate('/dashboard')
-    } catch (err) {
-      setError('Login failed. Please try again.')
+      window.location.reload()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Login failed. Please try again.')
     } finally {
       setLoading(false)
     }

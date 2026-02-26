@@ -1,27 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { withUser } from '../services/api'
 
 function Messages() {
   const [user, setUser] = useState<any>(null)
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
+  const [conversations, setConversations] = useState<any[]>([])
+  const [selectedUser, setSelectedUser] = useState<string | null>(null)
+  const [messages, setMessages] = useState<any[]>([])
   const [newMessage, setNewMessage] = useState('')
   const navigate = useNavigate()
-
-  // sample conversations (TODO: fetch from API)
-  const [conversations] = useState([
-    { partnerId: 'u1', partnerName: 'John Smith', lastMessage: 'Sounds good, lets proceed!', lastMessageTime: '2026-01-30T10:30:00' },
-    { partnerId: 'u2', partnerName: 'Sarah Johnson', lastMessage: 'Can you share the design files?', lastMessageTime: '2026-01-29T15:45:00' },
-    { partnerId: 'u3', partnerName: 'Mike Davis', lastMessage: 'Thank you for your proposal', lastMessageTime: '2026-01-28T09:00:00' }
-  ])
-
-  // sample messages for selected conversation
-  const [messages] = useState([
-    { _id: '1', senderId: 'u1', content: 'Hi, I saw your proposal for my project', createdAt: '2026-01-30T09:00:00' },
-    { _id: '2', senderId: 'me', content: 'Hello! Yes, I am very interested in working on it', createdAt: '2026-01-30T09:15:00' },
-    { _id: '3', senderId: 'u1', content: 'Great! Can you start next week?', createdAt: '2026-01-30T09:30:00' },
-    { _id: '4', senderId: 'me', content: 'Absolutely, I can start on Monday', createdAt: '2026-01-30T10:00:00' },
-    { _id: '5', senderId: 'u1', content: 'Sounds good, lets proceed!', createdAt: '2026-01-30T10:30:00' }
-  ])
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -29,94 +16,133 @@ function Messages() {
       navigate('/login')
       return
     }
-    setUser(JSON.parse(userData))
+    const parsed = JSON.parse(userData)
+    setUser(parsed)
+    loadConversations(parsed)
   }, [navigate])
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMessage.trim()) return
-    
-    // TODO: send to backend
-    alert('Message sent: ' + newMessage)
-    setNewMessage('')
+  const loadConversations = async (currentUser: any) => {
+    try {
+      const userApi = withUser(currentUser.email)
+      const res = await userApi.get('/messages')
+      const msgs = res.data || []
+
+      const convMap: any = {}
+      msgs.forEach((msg: any) => {
+        const partnerId = msg.senderId?._id === currentUser._id
+          ? msg.receiverId?._id
+          : msg.senderId?._id
+        const partner = msg.senderId?._id === currentUser._id
+          ? msg.receiverId
+          : msg.senderId
+
+        if (partnerId && !convMap[partnerId]) {
+          convMap[partnerId] = {
+            partnerId,
+            partnerName: `${partner?.firstName || ''} ${partner?.lastName || ''}`.trim() || 'User',
+            lastMessage: msg.content,
+          }
+        }
+      })
+      setConversations(Object.values(convMap))
+    } catch (err) {
+      console.error('Failed to load conversations:', err)
+    }
   }
 
-  if (!user) return <div className="p-8">Loading...</div>
+  const loadMessages = async (partnerId: string) => {
+    setSelectedUser(partnerId)
+    try {
+      const userApi = withUser(user.email)
+      const res = await userApi.get('/messages', { params: { withUserId: partnerId } })
+      setMessages(res.data || [])
+    } catch (err) {
+      console.error('Failed to load messages:', err)
+    }
+  }
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newMessage.trim() || !selectedUser) return
+
+    try {
+      const userApi = withUser(user.email)
+      await userApi.post('/messages', {
+        receiverId: selectedUser,
+        content: newMessage
+      })
+      setNewMessage('')
+      loadMessages(selectedUser)
+    } catch (err) {
+      console.error('Failed to send message:', err)
+    }
+  }
+
+  if (!user) return <div className="p-8 text-center text-gray-500">Loading...</div>
 
   return (
-    <div className="max-w-6xl mx-auto p-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Messages</h1>
+    <div className="max-w-6xl mx-auto px-4 py-8">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Messages</h1>
 
-      <div className="bg-white rounded-lg shadow flex" style={{ height: '500px' }}>
-        {/* Conversations List */}
-        <div className="w-1/3 border-r overflow-y-auto">
-          {conversations.map(conv => (
-            <div
-              key={conv.partnerId}
-              onClick={() => setSelectedConversation(conv.partnerId)}
-              className={`p-4 border-b cursor-pointer hover:bg-gray-50 ${
-                selectedConversation === conv.partnerId ? 'bg-blue-50' : ''
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                  {conv.partnerName.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{conv.partnerName}</p>
-                  <p className="text-sm text-gray-500 truncate">{conv.lastMessage}</p>
+      <div className="bg-white border border-gray-200 rounded-xl flex" style={{ height: '500px' }}>
+        <div className="w-1/3 border-r border-gray-200 overflow-y-auto">
+          {conversations.length === 0 ? (
+            <div className="p-6 text-center text-gray-400 text-sm">No conversations yet</div>
+          ) : (
+            conversations.map((conv: any) => (
+              <div
+                key={conv.partnerId}
+                onClick={() => loadMessages(conv.partnerId)}
+                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
+                  selectedUser === conv.partnerId ? 'bg-blue-50' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-semibold text-sm">{conv.partnerName.charAt(0)}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm text-gray-900">{conv.partnerName}</p>
+                    <p className="text-xs text-gray-400 truncate">{conv.lastMessage}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
-        {/* Messages Area */}
         <div className="flex-1 flex flex-col">
-          {selectedConversation ? (
+          {selectedUser ? (
             <>
-              {/* Messages */}
-              <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                {messages.map(msg => (
-                  <div
-                    key={msg._id}
-                    className={`flex ${msg.senderId === 'me' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-xs px-4 py-2 rounded-lg ${
-                      msg.senderId === 'me' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      <p>{msg.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        msg.senderId === 'me' ? 'text-blue-200' : 'text-gray-400'
+              <div className="flex-1 p-4 overflow-y-auto space-y-3">
+                {messages.map((msg: any) => {
+                  const isMe = msg.senderId?._id === user._id || msg.senderId === user._id
+                  return (
+                    <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-xs px-4 py-2 rounded-2xl text-sm ${
+                        isMe ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                        {msg.content}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-
-              {/* Message Input */}
-              <form onSubmit={handleSendMessage} className="p-4 border-t flex gap-2">
+              <form onSubmit={handleSend} className="p-4 border-t border-gray-200 flex gap-2">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 border p-2 rounded"
+                  className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Type a message..."
                 />
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-                >
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
                   Send
                 </button>
               </form>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500">
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
               Select a conversation to start messaging
             </div>
           )}
@@ -127,4 +153,3 @@ function Messages() {
 }
 
 export default Messages
-

@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { api } from '../services/api'
 
 function Register() {
-  const [name, setName] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -29,12 +31,19 @@ function Register() {
     setLoading(true)
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      localStorage.setItem('user', JSON.stringify({ name, email, userType }))
-      localStorage.setItem('token', 'fake-token-123')
+      const res = await api.post('/auth/register', {
+        firstName,
+        lastName,
+        email,
+        password,
+        userType
+      })
+      localStorage.setItem('user', JSON.stringify(res.data.user))
+      localStorage.setItem('token', res.data.token)
       navigate('/dashboard')
-    } catch (err) {
-      setError('Registration failed. Please try again.')
+      window.location.reload()
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -60,7 +69,6 @@ function Register() {
             </div>
           )}
 
-          {/* Role selector */}
           <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               type="button"
@@ -89,16 +97,29 @@ function Register() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                placeholder="John Doe"
-                required
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="John"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  placeholder="Doe"
+                  required
+                />
+              </div>
             </div>
 
             <div>
