@@ -15,10 +15,10 @@ This is my capstone project for HTTP 5310. FreelanceHub connects freelancers wit
 | Week 3 | Jan 30 - Feb 5 | Proposal system, Messaging, File upload, My Projects dashboard, Usability testing | ✅ Done |
 | Week 4 | Feb 6-12 | Time tracking, Stripe payments, Reviews system, Admin dashboard | ✅ Done |
 | Week 5 | Feb 13-19 | Notifications, advanced search, testing, UI polish | ✅ Done |
-| Week 6 | Feb 20-26 | Performance, final testing, documentation, deployment prep | 🔄 In Progress |
-| Week 7 | Feb 27 - Mar 5 | Final polish, UAT, go-live, presentation | ⏳ Upcoming |
+| Week 6 | Feb 20-26 | UI redesign, responsive design, testing | ✅ Done |
+| Week 7 | Feb 27 - Mar 5 | Final polish, UAT, go-live, presentation | 🔄 In Progress |
 
-**Total Hours Logged:** 165.0 / 219 hours
+**Total Hours Logged:** 187.0 / 219 hours
 
 ## Tech Stack
 
