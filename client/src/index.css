@@ -9,15 +9,74 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background-color: #f8fafc;
-  color: #1e293b;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 input, select, textarea, button {
   font-family: 'Inter', sans-serif;
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+  opacity: 0.6;
+}
+
 ::selection {
-  background-color: #3b82f6;
-  color: white;
+  background-color: #5eead4;
+  color: #1a1a1a;
+}
+
+/* Responsive container: scales with screen, max-out on ultrawide */
+.container-app {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+@media (min-width: 640px)  { .container-app { padding-left: 1.5rem; padding-right: 1.5rem; } }
+@media (min-width: 1024px) { .container-app { padding-left: 2.5rem; padding-right: 2.5rem; } }
+@media (min-width: 1536px) { .container-app { max-width: 1600px; padding-left: 3rem; padding-right: 3rem; } }
+
+/* Page content container for inner pages */
+.page-content {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+@media (min-width: 640px)  { .page-content { padding: 2rem 1.5rem; } }
+@media (min-width: 1024px) { .page-content { padding: 2.5rem 2.5rem; } }
+@media (min-width: 1536px) { .page-content { max-width: 1600px; padding: 2.5rem 3rem; } }
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #5eead4, #2dd4bf);
+  color: #0f172a;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.92; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Card */
+.card {
+  background: #252525;
+  border: 1px solid #404040;
+  border-radius: 12px;
+}
+
+/* Focus */
+input:focus, select:focus, textarea:focus { outline: none; }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  box-shadow: 0 0 0 2px #1a1a1a, 0 0 0 4px #5eead4;
 }

@@ -1,151 +1,202 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { api } from '../services/api'
 
 function SearchFreelancers() {
+  const [searchParams] = useSearchParams()
+  const inviteProjectId = searchParams.get('invite')
   const [searchQuery, setSearchQuery] = useState('')
   const [skillsFilter, setSkillsFilter] = useState('')
+  const [experienceFilter, setExperienceFilter] = useState('')
   const [locationFilter, setLocationFilter] = useState('')
+  const [freelancers, setFreelancers] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [inviteProject, setInviteProject] = useState<any | null>(null)
+  const [invitedFreelancerIds, setInvitedFreelancerIds] = useState<Set<string>>(new Set())
+  const [user, setUser] = useState<any>(null)
+  const [invitingId, setInvitingId] = useState<string | null>(null)
 
-  // sample freelancer data (TODO: fetch from API)
-  const [freelancers] = useState([
-    {
-      _id: 'f1',
-      firstName: 'Alex',
-      lastName: 'Chen',
-      profile: {
-        bio: 'Full-stack developer with 5 years experience in React and Node.js',
-        skills: ['React', 'Node.js', 'TypeScript', 'MongoDB'],
-        location: 'Toronto, Canada',
-        rating: 4.9
-      }
-    },
-    {
-      _id: 'f2',
-      firstName: 'Maria',
-      lastName: 'Garcia',
-      profile: {
-        bio: 'UI/UX designer specializing in mobile app interfaces',
-        skills: ['Figma', 'UI Design', 'Mobile Apps', 'Prototyping'],
-        location: 'Vancouver, Canada',
-        rating: 4.7
-      }
-    },
-    {
-      _id: 'f3',
-      firstName: 'James',
-      lastName: 'Wilson',
-      profile: {
-        bio: 'Backend developer experienced in APIs and cloud services',
-        skills: ['Python', 'AWS', 'Docker', 'PostgreSQL'],
-        location: 'Montreal, Canada',
-        rating: 4.5
-      }
-    },
-    {
-      _id: 'f4',
-      firstName: 'Priya',
-      lastName: 'Sharma',
-      profile: {
-        bio: 'WordPress developer and SEO specialist',
-        skills: ['WordPress', 'PHP', 'SEO', 'HTML/CSS'],
-        location: 'Mississauga, Canada',
-        rating: 4.3
-      }
+  const fetchFreelancers = async () => {
+    try {
+      setLoading(true)
+      const params: any = {}
+      if (searchQuery.trim()) params.q = searchQuery.trim()
+      if (skillsFilter.trim()) params.skills = skillsFilter.trim()
+      if (experienceFilter.trim()) params.experience = experienceFilter.trim()
+      if (locationFilter.trim()) params.location = locationFilter.trim()
+
+      const res = await api.get('/freelancers', { params })
+      setFreelancers(res.data || [])
+    } catch {
+      setFreelancers([])
+    } finally {
+      setLoading(false)
     }
-  ])
+  }
 
-  // filter freelancers
-  const filtered = freelancers.filter(f => {
-    const matchesSearch = !searchQuery ||
-      `${f.firstName} ${f.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.profile.bio.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) setUser(JSON.parse(userData))
+    fetchFreelancers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    const matchesSkills = !skillsFilter ||
-      f.profile.skills.some(s => s.toLowerCase().includes(skillsFilter.toLowerCase()))
+  useEffect(() => {
+    if (!inviteProjectId) {
+      setInviteProject(null)
+      setInvitedFreelancerIds(new Set())
+      return
+    }
+    api.get(`/projects/${inviteProjectId}`).then(res => setInviteProject(res.data)).catch(() => setInviteProject(null))
+    api.get(`/invitations/project/${inviteProjectId}`).then(res => {
+      const list = Array.isArray(res.data) ? res.data : []
+      setInvitedFreelancerIds(new Set(list.map((i: any) => String(i.freelancerId?._id || i.freelancerId))))
+    }).catch(() => setInvitedFreelancerIds(new Set()))
+  }, [inviteProjectId])
 
-    const matchesLocation = !locationFilter ||
-      f.profile.location.toLowerCase().includes(locationFilter.toLowerCase())
-
-    return matchesSearch && matchesSkills && matchesLocation
-  })
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 48,
+    fontSize: 15,
+    padding: '0 16px',
+    background: '#1a1a1a',
+    border: '1px solid #333',
+    borderRadius: 10,
+    color: '#fff',
+    outline: 'none',
+  }
 
   return (
-    <div className="max-w-6xl mx-auto p-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Find Freelancers</h1>
+    <div className="page-content">
+      <header style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 700, color: '#fff', marginBottom: 8 }}>Find Freelancers</h1>
+        <p style={{ fontSize: 14, color: '#999' }}>Search by name, skills, experience, or location to find freelancers for your project.</p>
+        {inviteProjectId && inviteProject && (
+          <div style={{ marginTop: 16, padding: '12px 16px', borderRadius: 10, background: 'rgba(94,234,212,0.1)', border: '1px solid rgba(94,234,212,0.3)' }}>
+            <span style={{ fontSize: 14, color: '#5eead4', fontWeight: 500 }}>Inviting to: {inviteProject.title}</span>
+            <span style={{ fontSize: 13, color: '#9ca3af', marginLeft: 8 }}>— Click &quot;Invite to apply&quot; to notify a freelancer.</span>
+          </div>
+        )}
+      </header>
 
-      {/* Search Filters */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid md:grid-cols-3 gap-4">
+      <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+        <form
+          className="grid md:grid-cols-2 lg:grid-cols-4"
+          style={{ gap: 12 }}
+          onSubmit={e => { e.preventDefault(); fetchFreelancers() }}
+        >
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full border p-2 rounded"
-            placeholder="Search by name or bio..."
+            style={inputStyle}
+            placeholder="Name or bio..."
           />
           <input
             type="text"
             value={skillsFilter}
             onChange={(e) => setSkillsFilter(e.target.value)}
-            className="w-full border p-2 rounded"
-            placeholder="Filter by skill..."
+            style={inputStyle}
+            placeholder="Skills (comma-separated)"
+          />
+          <input
+            type="text"
+            value={experienceFilter}
+            onChange={(e) => setExperienceFilter(e.target.value)}
+            style={inputStyle}
+            placeholder="Experience (keywords)"
           />
           <input
             type="text"
             value={locationFilter}
             onChange={(e) => setLocationFilter(e.target.value)}
-            className="w-full border p-2 rounded"
-            placeholder="Filter by location..."
+            style={inputStyle}
+            placeholder="Location..."
           />
-        </div>
+          <button
+            type="submit"
+            className="btn-primary"
+            style={{ gridColumn: '1 / -1', height: 48, borderRadius: 10, fontSize: 15, fontWeight: 600 }}
+          >
+            Search freelancers
+          </button>
+        </form>
       </div>
 
-      {/* Results */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {filtered.length === 0 ? (
-          <p className="text-gray-500 col-span-2 text-center py-8">No freelancers found</p>
-        ) : (
-          filtered.map(freelancer => (
-            <div key={freelancer._id} className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {freelancer.firstName.charAt(0)}
+      {loading ? (
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <p style={{ color: '#999', fontSize: 15 }}>Searching freelancers...</p>
+        </div>
+      ) : freelancers.length === 0 ? (
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <p style={{ color: '#999', fontSize: 15 }}>No freelancers found</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2" style={{ gap: 16 }}>
+          {freelancers.map(freelancer => (
+            <div key={freelancer._id} className="card" style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                <div style={{
+                  width: 48,
+                  height: 48,
+                  background: '#333',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <span style={{ color: '#5eead4', fontWeight: 700, fontSize: 18 }}>{freelancer.firstName.charAt(0)}</span>
                 </div>
-                <div className="flex-1">
-                  <div className="flex justify-between">
-                    <h2 className="font-semibold text-lg">
-                      {freelancer.firstName} {freelancer.lastName}
-                    </h2>
-                    <span className="text-yellow-500 font-medium">
-                      ⭐ {freelancer.profile.rating}
-                    </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <h2 style={{ fontSize: 17, fontWeight: 600, color: '#fff' }}>{freelancer.firstName} {freelancer.lastName}</h2>
+                    <span style={{ color: '#fbbf24', fontWeight: 500, fontSize: 14, flexShrink: 0 }}>⭐ {freelancer.profile?.rating ?? 0}</span>
                   </div>
-                  <p className="text-sm text-gray-500">{freelancer.profile.location}</p>
-                  <p className="text-gray-600 text-sm mt-2">{freelancer.profile.bio}</p>
-
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {freelancer.profile.skills.map((skill, i) => (
-                      <span key={i} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                        {skill}
-                      </span>
+                  <p style={{ fontSize: 13, color: '#999', marginBottom: 8 }}>{freelancer.profile?.location || 'Location not set'}</p>
+                  <p style={{ fontSize: 14, color: '#999', lineHeight: 1.6, marginBottom: 12 }}>{freelancer.profile?.bio || 'No bio yet.'}</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                    {(freelancer.profile?.skills || []).map((skill: string, i: number) => (
+                      <span key={i} style={{ background: '#333', color: '#999', padding: '4px 10px', borderRadius: 6, fontSize: 12 }}>{skill}</span>
                     ))}
                   </div>
-
-                  <Link
-                    to={`/profile/${freelancer._id}`}
-                    className="text-blue-600 hover:underline text-sm mt-3 inline-block"
-                  >
-                    View Profile
-                  </Link>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <Link to={`/profile/${freelancer._id}`} style={{ color: '#5eead4', fontSize: 14, fontWeight: 500, textDecoration: 'none' }}>
+                      View Profile
+                    </Link>
+                    {inviteProjectId && user?.userType === 'client' && (
+                      invitedFreelancerIds.has(freelancer._id)
+                        ? <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 500 }}>✓ Invited</span>
+                        : (
+                            <button
+                              type="button"
+                              onClick={() => handleInvite(freelancer._id)}
+                              disabled={!!invitingId}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 8,
+                                border: '1px solid #5eead4',
+                                background: 'transparent',
+                                color: '#5eead4',
+                                fontSize: 13,
+                                fontWeight: 500,
+                                cursor: invitingId ? 'default' : 'pointer',
+                                opacity: invitingId === freelancer._id ? 0.7 : 1,
+                              }}
+                            >
+                              {invitingId === freelancer._id ? 'Sending...' : 'Invite to apply'}
+                            </button>
+                          )
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 export default SearchFreelancers
-

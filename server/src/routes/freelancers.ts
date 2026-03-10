@@ -6,23 +6,32 @@ const router = Router();
 // search freelancers
 router.get('/', async (req, res) => {
     try {
-        const { q, skills, location, minRating } = req.query;
+        const { q, skills, experience, location, minRating } = req.query;
 
         const filter: any = { userType: 'freelancer' };
 
-        // text search
+        // text search: name (first, last, full), email, bio
         if (q) {
+            const qStr = (q as string).trim();
             filter.$or = [
-                { firstName: { $regex: q, $options: 'i' } },
-                { lastName: { $regex: q, $options: 'i' } },
-                { 'profile.bio': { $regex: q, $options: 'i' } }
+                { firstName: { $regex: qStr, $options: 'i' } },
+                { lastName: { $regex: qStr, $options: 'i' } },
+                { email: { $regex: qStr, $options: 'i' } },
+                { 'profile.bio': { $regex: qStr, $options: 'i' } }
             ];
         }
 
-        // skills filter
+        // skills filter (comma-separated; match any of the listed skills)
         if (skills) {
-            const skillsArr = (skills as string).split(',').map(s => s.trim());
-            filter['profile.skills'] = { $in: skillsArr.map(s => new RegExp(s, 'i')) };
+            const skillsArr = (skills as string).split(',').map(s => s.trim()).filter(Boolean);
+            if (skillsArr.length > 0) {
+                filter['profile.skills'] = { $in: skillsArr.map(s => new RegExp(s, 'i')) };
+            }
+        }
+
+        // experience filter: search inside profile.experience text
+        if (experience) {
+            filter['profile.experience'] = { $regex: experience, $options: 'i' };
         }
 
         // location filter

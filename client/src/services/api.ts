@@ -1,18 +1,30 @@
 import axios from 'axios';
 
-const baseURL = 'http://localhost:4000/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000') + '/api';
 
 export const api = axios.create({
-    baseURL: baseURL,
+    baseURL,
     headers: { 'Content-Type': 'application/json' },
 });
 
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+    return config;
+});
+
 export function withUser(email: string) {
-    return axios.create({
-        baseURL: baseURL,
+    const instance = axios.create({
+        baseURL,
         headers: {
             'Content-Type': 'application/json',
             'x-user-email': email,
         },
     });
+    instance.interceptors.request.use((config) => {
+        const token = localStorage.getItem('token');
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
+    });
+    return instance;
 }

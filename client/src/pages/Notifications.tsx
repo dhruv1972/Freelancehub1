@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../services/api'
+
+type NotificationItem = {
+  _id: string
+  title: string
+  message: string
+  type: string
+  isRead: boolean
+  createdAt: string
+  relatedId?: string
+}
 
 function Notifications() {
   const [user, setUser] = useState<any>(null)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const navigate = useNavigate()
-
-  // sample notifications (TODO: fetch from API)
-  const [notifications, setNotifications] = useState([
-    { _id: '1', title: 'Proposal Accepted!', message: 'Your proposal for "E-commerce Website" has been accepted.', type: 'proposal_accepted', isRead: false, createdAt: '2026-02-12T10:30:00' },
-    { _id: '2', title: 'New Message', message: 'John Smith sent you a message about the project.', type: 'message_received', isRead: false, createdAt: '2026-02-12T09:15:00' },
-    { _id: '3', title: 'Payment Received', message: 'You received $500 for "Logo Design" project.', type: 'payment_received', isRead: true, createdAt: '2026-02-11T16:00:00' },
-    { _id: '4', title: 'New Proposal', message: 'Sarah Johnson submitted a proposal for your project.', type: 'proposal_received', isRead: true, createdAt: '2026-02-10T14:30:00' },
-    { _id: '5', title: 'Project Completed', message: 'The project "Portfolio Website" has been marked as completed.', type: 'project_completed', isRead: true, createdAt: '2026-02-09T11:00:00' },
-  ])
 
   useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -20,17 +23,76 @@ function Notifications() {
       navigate('/login')
       return
     }
-    setUser(JSON.parse(userData))
+    const parsed = JSON.parse(userData)
+    setUser(parsed)
+
+    api
+      .get<NotificationItem[]>(`/notifications/${parsed._id}`)
+      .then(res => setNotifications(res.data || []))
+      .catch(() => setNotifications([]))
   }, [navigate])
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n._id === id ? { ...n, isRead: true } : n
-    ))
+  const getRelatedId = (n: NotificationItem): string | null => {
+    const r = n.relatedId
+    if (r == null) return null
+    if (typeof r === 'string') return r
+    return (r as any)?._id ?? (r as any)?.toString?.() ?? null
   }
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })))
+  const markAsReadAndNavigate = async (n: NotificationItem) => {
+    // Compute target first so we always navigate even if mark-as-read fails
+    let target: string | null = null
+    const relatedId = getRelatedId(n)
+    switch (n.type) {
+      case 'project_posted':
+      case 'proposal_received':
+        target = relatedId ? `/project/${relatedId}` : '/my-projects'
+        break
+      case 'proposal_accepted':
+        target = relatedId ? `/project/${relatedId}` : '/my-proposals'
+        break
+      case 'proposal_rejected':
+        target = '/my-proposals'
+        break
+      case 'payment_received':
+        target = relatedId ? `/project/${relatedId}` : '/my-projects'
+        break
+      case 'project_completed':
+        target = '/my-projects'
+        break
+      case 'message_received':
+        target = '/messages'
+        break
+      case 'invitation_to_apply':
+        target = relatedId ? `/project/${relatedId}` : '/search'
+        break
+      default:
+        target = null
+    }
+
+    if (target) {
+      navigate(target)
+    }
+
+    try {
+      if (!n.isRead) {
+        await api.patch(`/notifications/${n._id}/read`)
+        setNotifications(prev => prev.map(item =>
+          item._id === n._id ? { ...item, isRead: true } : item
+        ))
+      }
+    } catch {
+      // ignore mark-as-read errors; navigation already happened
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      await api.patch(`/notifications/${user._id}/read-all`)
+      setNotifications(notifications.map(n => ({ ...n, isRead: true })))
+    } catch {
+      // ignore error
+    }
   }
 
   const getIcon = (type: string) => {
@@ -41,27 +103,34 @@ function Notifications() {
       case 'message_received': return '💬'
       case 'payment_received': return '💰'
       case 'project_completed': return '🎉'
+      case 'project_posted': return '📢'
+      case 'invitation_to_apply': return '📨'
       default: return '🔔'
     }
   }
 
   const unreadCount = notifications.filter(n => !n.isRead).length
 
-  if (!user) return <div className="p-8">Loading...</div>
+  if (!user) return (
+    <div className="page-content">
+      <div style={{ padding: '80px 0', textAlign: 'center', color: '#999', fontSize: 15 }}>Loading...</div>
+    </div>
+  )
 
   return (
-    <div className="max-w-3xl mx-auto p-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+    <div className="page-content" style={{ maxWidth: 840 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 }}>
         <div>
-          <h1 className="text-2xl font-bold">Notifications</h1>
-          {unreadCount > 0 && (
-            <p className="text-sm text-gray-500">{unreadCount} unread</p>
-          )}
+          <h1 style={{ fontSize: 26, fontWeight: 700, color: '#fff', marginBottom: 8 }}>Notifications</h1>
+          <p style={{ fontSize: 14, color: '#999' }}>Updates on proposals, messages, and payments.</p>
+          {unreadCount > 0 && <p style={{ fontSize: 13, color: '#999', marginTop: 4 }}>{unreadCount} unread</p>}
         </div>
         {unreadCount > 0 && (
           <button
             onClick={markAllAsRead}
-            className="text-blue-600 hover:underline text-sm"
+            style={{ color: '#5eead4', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 500 }}
+            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
           >
             Mark all as read
           </button>
@@ -69,33 +138,34 @@ function Notifications() {
       </div>
 
       {notifications.length === 0 ? (
-        <div className="bg-white p-8 rounded-lg shadow text-center">
-          <p className="text-gray-500">No notifications yet</p>
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <p style={{ color: '#999', fontSize: 15 }}>No notifications yet</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {notifications.map(notification => (
             <div
               key={notification._id}
-              onClick={() => markAsRead(notification._id)}
-              className={`bg-white p-4 rounded-lg shadow flex items-start gap-3 cursor-pointer ${
-                !notification.isRead ? 'border-l-4 border-blue-500' : ''
-              }`}
+              onClick={() => markAsReadAndNavigate(notification)}
+              className="card"
+              style={{
+                padding: 20,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 14,
+                cursor: 'pointer',
+                transition: 'border-color 0.15s',
+                borderLeft: !notification.isRead ? '4px solid #5eead4' : undefined,
+              }}
             >
-              <span className="text-2xl">{getIcon(notification.type)}</span>
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <h3 className={`font-medium ${!notification.isRead ? 'text-black' : 'text-gray-600'}`}>
-                    {notification.title}
-                  </h3>
-                  {!notification.isRead && (
-                    <span className="w-2 h-2 bg-blue-500 rounded-full mt-2"></span>
-                  )}
+              <span style={{ fontSize: 24, flexShrink: 0 }}>{getIcon(notification.type)}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <h3 style={{ fontWeight: 500, fontSize: 15, color: !notification.isRead ? '#fff' : '#999' }}>{notification.title}</h3>
+                  {!notification.isRead && <span style={{ width: 8, height: 8, background: '#5eead4', borderRadius: '50%', marginTop: 6, flexShrink: 0 }} />}
                 </div>
-                <p className="text-sm text-gray-500 mt-1">{notification.message}</p>
-                <p className="text-xs text-gray-400 mt-2">
-                  {new Date(notification.createdAt).toLocaleString()}
-                </p>
+                <p style={{ fontSize: 14, color: '#999', marginTop: 4, lineHeight: 1.5 }}>{notification.message}</p>
+                <p style={{ fontSize: 12, color: '#777', marginTop: 8 }}>{new Date(notification.createdAt).toLocaleString()}</p>
               </div>
             </div>
           ))}
@@ -106,4 +176,3 @@ function Notifications() {
 }
 
 export default Notifications
-

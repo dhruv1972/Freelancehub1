@@ -38,7 +38,8 @@ router.post('/register', async (req, res) => {
                 email: user.email,
                 firstName: user.firstName,
                 lastName: user.lastName,
-                userType: user.userType
+                userType: user.userType,
+                isAdmin: user.isAdmin || false
             },
             token
         });
@@ -74,6 +75,7 @@ router.post('/login', async (req, res) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 userType: user.userType,
+                isAdmin: user.isAdmin || false,
                 profile: user.profile
             },
             token

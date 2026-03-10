@@ -4,10 +4,19 @@ const NotificationSchema = new Schema({
     userId: { type: Types.ObjectId, ref: 'User', required: true },
     title: { type: String, required: true },
     message: { type: String, required: true },
-    type: { 
-        type: String, 
-        enum: ['proposal_received', 'proposal_accepted', 'proposal_rejected', 'payment_received', 'project_completed', 'message_received'],
-        required: true 
+    type: {
+        type: String,
+        enum: [
+            'proposal_received',
+            'proposal_accepted',
+            'proposal_rejected',
+            'payment_received',
+            'project_completed',
+            'message_received',
+            'project_posted',
+            'invitation_to_apply',
+        ],
+        required: true
     },
     relatedId: { type: Types.ObjectId },
     isRead: { type: Boolean, default: false }

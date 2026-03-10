@@ -5,7 +5,12 @@ const MessageSchema = new Schema({
     receiverId: { type: Types.ObjectId, ref: 'User', required: true },
     projectId: { type: Types.ObjectId, ref: 'Project' },
     content: { type: String, required: true },
-    attachments: [String],
+    // attachments are stored as embedded docs with a display name and a data URL (base64)
+    attachments: [{
+        name: String,
+        data: String,
+        mimeType: String
+    }],
     read: { type: Boolean, default: false }
 }, { timestamps: true });
 

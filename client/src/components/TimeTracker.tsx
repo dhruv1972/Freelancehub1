@@ -1,29 +1,71 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { api, withUser } from '../services/api'
+
+interface TimeEntryType {
+  _id: string
+  freelancerId: string
+  projectId: string
+  startTime: string
+  endTime?: string
+  description?: string
+  durationMinutes?: number
+  createdAt?: string
+}
 
 interface TimeTrackerProps {
   projectId: string
+  userId: string
+  userEmail: string
 }
 
-function TimeTracker({ projectId: _projectId }: TimeTrackerProps) {
-  const [isRunning, setIsRunning] = useState(false)
-  const [seconds, setSeconds] = useState(0)
+function TimeTracker({ projectId, userId, userEmail }: TimeTrackerProps) {
+  const [entries, setEntries] = useState<TimeEntryType[]>([])
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
+  const [activeStartTime, setActiveStartTime] = useState<Date | null>(null)
   const [description, setDescription] = useState('')
-  const [entries, setEntries] = useState([
-    { _id: '1', description: 'Homepage layout', durationMinutes: 45, startTime: '2026-02-01T10:00:00' },
-    { _id: '2', description: 'Login page styling', durationMinutes: 30, startTime: '2026-02-01T14:00:00' },
-    { _id: '3', description: 'API integration', durationMinutes: 60, startTime: '2026-02-02T10:00:00' },
-  ])
+  const [loading, setLoading] = useState(false)
+  const [loadingEntries, setLoadingEntries] = useState(true)
 
-  // timer logic
-  useEffect(() => {
-    let interval: number | undefined
-    if (isRunning) {
-      interval = window.setInterval(() => {
-        setSeconds(prev => prev + 1)
-      }, 1000)
+  const loadEntries = useCallback(async () => {
+    setLoadingEntries(true)
+    try {
+      const res = await api.get(`/time/project/${projectId}`)
+      const list = Array.isArray(res.data) ? res.data : []
+      setEntries(list)
+      const myActive = list.find(
+        (e: TimeEntryType) =>
+          String(e.freelancerId) === String(userId) && !e.endTime
+      )
+      if (myActive) {
+        setActiveEntryId(myActive._id)
+        setActiveStartTime(new Date(myActive.startTime))
+      } else {
+        setActiveEntryId(null)
+        setActiveStartTime(null)
+      }
+    } catch {
+      setEntries([])
+      setActiveEntryId(null)
+      setActiveStartTime(null)
+    } finally {
+      setLoadingEntries(false)
     }
+  }, [projectId, userId])
+
+  useEffect(() => {
+    loadEntries()
+  }, [loadEntries])
+
+  const [seconds, setSeconds] = useState(0)
+  useEffect(() => {
+    if (!activeStartTime) return
+    const tick = () => {
+      setSeconds(Math.floor((Date.now() - activeStartTime.getTime()) / 1000))
+    }
+    tick()
+    const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [isRunning])
+  }, [activeStartTime])
 
   const formatTime = (totalSeconds: number) => {
     const hrs = Math.floor(totalSeconds / 3600)
@@ -32,94 +74,185 @@ function TimeTracker({ projectId: _projectId }: TimeTrackerProps) {
     return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!description.trim()) {
-      alert('Please enter a description')
+      alert('Please enter a description (e.g. what you\'re working on)')
       return
     }
-    setIsRunning(true)
-    // TODO: call API to start timer
+    setLoading(true)
+    try {
+      const api = withUser(userEmail)
+      const res = await api.post('/time/start', {
+        freelancerId: userId,
+        projectId,
+        description: description.trim(),
+      })
+      const entry = res.data
+      setActiveEntryId(entry._id)
+      setActiveStartTime(new Date(entry.startTime))
+      setDescription('')
+      await loadEntries()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to start timer')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleStop = () => {
-    setIsRunning(false)
-    const minutes = Math.floor(seconds / 60)
-    
-    // add to entries
-    setEntries([{
-      _id: Date.now().toString(),
-      description,
-      durationMinutes: minutes || 1,
-      startTime: new Date().toISOString()
-    }, ...entries])
-
-    setSeconds(0)
-    setDescription('')
-    // TODO: call API to stop timer
+  const handleStop = async () => {
+    if (!activeEntryId) return
+    setLoading(true)
+    try {
+      const api = withUser(userEmail)
+      await api.post('/time/stop', { timeEntryId: activeEntryId })
+      setActiveEntryId(null)
+      setActiveStartTime(null)
+      setSeconds(0)
+      await loadEntries()
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to stop timer')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const totalMinutes = entries.reduce((sum, e) => sum + e.durationMinutes, 0)
+  const myEntries = entries.filter((e) => String(e.freelancerId) === String(userId))
+  const totalMinutes = myEntries.reduce((sum, e) => sum + (e.durationMinutes || 0), 0)
+
+  const cardStyle: React.CSSProperties = {
+    padding: 24,
+    borderRadius: 12,
+    border: '1px solid #333',
+    background: '#111827',
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 44,
+    padding: '0 14px',
+    fontSize: 14,
+    background: '#1a1a1a',
+    border: '1px solid #333',
+    borderRadius: 10,
+    color: '#fff',
+    outline: 'none',
+  }
+
+  if (loadingEntries) {
+    return (
+      <div className="card" style={cardStyle}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 16 }}>Time tracker</h2>
+        <p style={{ color: '#9ca3af', fontSize: 14 }}>Loading time entries...</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h2 className="text-xl font-bold mb-4">Time Tracker</h2>
-      
-      {/* Timer */}
-      <div className="text-center mb-6">
-        <p className="text-4xl font-mono font-bold mb-4">{formatTime(seconds)}</p>
-        
+    <div className="card" style={cardStyle}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 16 }}>Track time</h2>
+      <p style={{ color: '#9ca3af', fontSize: 13, marginBottom: 16 }}>
+        Log time spent on this project. Start the timer when you begin work and stop when you pause or finish.
+      </p>
+
+      <div style={{ marginBottom: 20 }}>
+        <p style={{ fontSize: 28, fontFamily: 'monospace', fontWeight: 600, color: '#5eead4', marginBottom: 12, textAlign: 'center' }}>
+          {formatTime(seconds)}
+        </p>
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="w-full border p-2 rounded mb-3"
+          style={inputStyle}
           placeholder="What are you working on?"
-          disabled={isRunning}
+          disabled={!!activeEntryId}
         />
-
-        {isRunning ? (
-          <button
-            onClick={handleStop}
-            className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700"
-          >
-            Stop Timer
-          </button>
-        ) : (
-          <button
-            onClick={handleStart}
-            className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
-          >
-            Start Timer
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+          {activeEntryId ? (
+            <button
+              type="button"
+              onClick={handleStop}
+              disabled={loading}
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 10,
+                border: 'none',
+                background: 'rgba(248,113,113,0.2)',
+                color: '#f87171',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: loading ? 'default' : 'pointer',
+                opacity: loading ? 0.6 : 1,
+              }}
+            >
+              {loading ? 'Stopping...' : 'Stop timer'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStart}
+              disabled={loading || !description.trim()}
+              className="btn-primary"
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                opacity: loading || !description.trim() ? 0.6 : 1,
+              }}
+            >
+              {loading ? 'Starting...' : 'Start timer'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Total time */}
-      <div className="bg-blue-50 p-3 rounded mb-4 text-center">
-        <p className="text-sm text-gray-600">Total Time Logged</p>
-        <p className="font-bold text-lg">{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</p>
+      <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(94,234,212,0.08)', border: '1px solid rgba(94,234,212,0.2)', marginBottom: 20, textAlign: 'center' }}>
+        <p style={{ fontSize: 12, color: '#9ca3af', marginBottom: 2 }}>Total time logged on this project</p>
+        <p style={{ fontSize: 18, fontWeight: 700, color: '#5eead4' }}>
+          {Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m
+        </p>
       </div>
 
-      {/* Time entries */}
-      <h3 className="font-semibold mb-2">Recent Entries</h3>
-      <div className="space-y-2">
-        {entries.map(entry => (
-          <div key={entry._id} className="flex justify-between items-center border-b pb-2">
-            <div>
-              <p className="text-sm font-medium">{entry.description}</p>
-              <p className="text-xs text-gray-500">
-                {new Date(entry.startTime).toLocaleDateString()}
-              </p>
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: '#e5e7eb', marginBottom: 10 }}>Your time entries</h3>
+      {myEntries.length === 0 ? (
+        <p style={{ fontSize: 13, color: '#777' }}>No time logged yet. Start the timer to add an entry.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {myEntries.map((entry) => (
+            <div
+              key={entry._id}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 12px',
+                borderRadius: 8,
+                border: '1px solid #333',
+                background: '#0b0b0b',
+              }}
+            >
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 500, color: '#e5e7eb' }}>
+                  {entry.description || 'No description'}
+                </p>
+                <p style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                  {new Date(entry.startTime).toLocaleString()}
+                  {entry.endTime ? ` · ${entry.durationMinutes ?? 0} min` : ' · in progress'}
+                </p>
+              </div>
+              {entry.durationMinutes != null && (
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#5eead4' }}>
+                  {Math.floor(entry.durationMinutes / 60)}h {entry.durationMinutes % 60}m
+                </span>
+              )}
             </div>
-            <span className="text-sm font-medium">
-              {Math.floor(entry.durationMinutes / 60)}h {entry.durationMinutes % 60}m
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 export default TimeTracker
-

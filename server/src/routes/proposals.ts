@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import mongoose from 'mongoose';
 import { Proposal } from '../models/Proposal';
 import { Project } from '../models/Project';
 import { User } from '../models/User';
+import { Notification } from '../models/Notification';
 
 const router = Router();
 
@@ -9,11 +11,11 @@ const router = Router();
 router.post('/:projectId', async (req, res) => {
     try {
         const { freelancerId, coverLetter, proposedBudget, timeline } = req.body;
-        
+
         // check if already applied
-        const existing = await Proposal.findOne({ 
-            projectId: req.params.projectId, 
-            freelancerId 
+        const existing = await Proposal.findOne({
+            projectId: req.params.projectId,
+            freelancerId
         });
         if (existing) {
             return res.status(400).json({ error: 'You already submitted a proposal' });
@@ -26,6 +28,22 @@ router.post('/:projectId', async (req, res) => {
             proposedBudget,
             timeline
         });
+
+        // notify project client about new proposal
+        try {
+            const project = await Project.findById(req.params.projectId).select('clientId title');
+            if (project?.clientId) {
+                await Notification.create({
+                    userId: project.clientId,
+                    title: 'New proposal received',
+                    message: 'You received a new proposal for your project "' + (project.title || 'Untitled Project') + '".',
+                    type: 'proposal_received',
+                    relatedId: project._id,
+                });
+            }
+        } catch {
+            // ignore notification errors
+        }
 
         res.status(201).json(proposal);
     } catch (err: any) {
@@ -69,11 +87,28 @@ router.post('/:id/accept', async (req, res) => {
             return res.status(404).json({ error: 'Proposal not found' });
         }
 
-        // update project status
-        await Project.findByIdAndUpdate(proposal.projectId, {
+        // update project: set status and selected freelancer so it appears in freelancer's "My Projects"
+        const projectId = new mongoose.Types.ObjectId(String(proposal.projectId));
+        const freelancerId = new mongoose.Types.ObjectId(String(proposal.freelancerId));
+        await Project.findByIdAndUpdate(projectId, {
             status: 'in-progress',
-            selectedFreelancer: proposal.freelancerId
+            selectedFreelancer: freelancerId
         });
+
+        // notify freelancer that their proposal was accepted
+        try {
+            const project = await Project.findById(projectId).select('title').lean();
+            const projectTitle = project?.title || 'the project';
+            await Notification.create({
+                userId: freelancerId,
+                title: 'Proposal accepted',
+                message: 'The client approved your proposal for "' + projectTitle + '". You can view and manage it in My Projects.',
+                type: 'proposal_accepted',
+                relatedId: projectId,
+            });
+        } catch {
+            // ignore notification errors
+        }
 
         res.json(proposal);
     } catch (err: any) {
@@ -93,6 +128,27 @@ router.post('/:id/reject', async (req, res) => {
             return res.status(404).json({ error: 'Proposal not found' });
         }
         res.json(proposal);
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// delete / withdraw proposal (freelancer)
+router.delete('/:id', async (req, res) => {
+    try {
+        const { freelancerId } = req.body;
+        const proposal = await Proposal.findById(req.params.id);
+
+        if (!proposal) {
+            return res.status(404).json({ error: 'Proposal not found' });
+        }
+
+        if (String(proposal.freelancerId) !== String(freelancerId)) {
+            return res.status(403).json({ error: 'Not authorized to delete this proposal' });
+        }
+
+        await Proposal.deleteOne({ _id: proposal._id });
+        res.json({ message: 'Proposal withdrawn successfully' });
     } catch (err: any) {
         res.status(500).json({ error: err.message });
     }

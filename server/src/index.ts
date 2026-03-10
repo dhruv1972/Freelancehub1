@@ -15,12 +15,16 @@ import adminRoutes from './routes/admin';
 import paymentRoutes from './routes/payments';
 import notificationRoutes from './routes/notifications';
 import freelancerRoutes from './routes/freelancers';
+import userRoutes from './routes/users';
+import savedJobsRoutes from './routes/savedJobs';
+import invitationRoutes from './routes/invitations';
 
 const app = express();
 
 // middleware
 app.use(cors());
-app.use(express.json());
+// Allow larger JSON bodies so freelancers can upload resumes as base64
+app.use(express.json({ limit: '5mb' }));
 
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || '';
@@ -42,6 +46,9 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/freelancers', freelancerRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/saved-jobs', savedJobsRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 // connect to database and start server
 mongoose.connect(MONGODB_URI)

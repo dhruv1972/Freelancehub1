@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { Review } from '../models/Review';
+import { User } from '../models/User';
 
 const router = Router();
 
@@ -16,6 +17,14 @@ router.post('/', async (req, res) => {
             comment,
             reviewType
         });
+
+        // when a client reviews a freelancer, update the freelancer's profile.rating (average of all client-to-freelancer reviews)
+        if (reviewType === 'client-to-freelancer' && revieweeId) {
+            const reviews = await Review.find({ revieweeId, reviewType: 'client-to-freelancer' });
+            const sum = reviews.reduce((s, r) => s + (r.rating || 0), 0);
+            const average = reviews.length ? sum / reviews.length : 0;
+            await User.findByIdAndUpdate(revieweeId, { 'profile.rating': Math.round(average * 10) / 10 });
+        }
 
         res.status(201).json(review);
     } catch (err: any) {
