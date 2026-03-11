@@ -16,9 +16,9 @@ This is my capstone project for HTTP 5310. FreelanceHub connects freelancers wit
 | Week 4 | Feb 6-12 | Time tracking, Stripe payments, Reviews system, Admin dashboard | ✅ Done |
 | Week 5 | Feb 13-19 | Notifications, advanced search, testing, UI polish | ✅ Done |
 | Week 6 | Feb 20-26 | UI redesign, responsive design, testing | ✅ Done |
-| Week 7 | Feb 27 - Mar 5 | Final polish, UAT, go-live, presentation | 🔄 In Progress |
+| Week 7 | Feb 27 - Mar 5 | Final polish, UAT, go-live, presentation | ✅ Done |
 
-**Total Hours Logged:** 187.0 / 219 hours
+**Total Hours Logged:** 219.0 / 219 hours
 
 ## Tech Stack
 
@@ -47,17 +47,21 @@ npm run dev
 Frontend runs on http://localhost:5173
 Backend runs on http://localhost:4000
 
-## Features Built So Far
+## Features
 
 - User registration and login (freelancer/client)
 - User profile management
 - Project posting and browsing with search filters
 - Proposal submission and management
-- Messaging between users
-- Time tracking with start/stop timer
-- Payment processing (Stripe test mode)
-- Review and rating system
+- Messaging between users (with file sharing)
+- Time tracking with start/stop timer and history
+- Payment processing (Stripe test mode) with notifications
+- Review and rating system (client ↔ freelancer feedback)
 - Admin dashboard (user/project management)
+- Notifications center (proposals, messages, payments, invitations)
+- Search freelancers by skills/experience/location
+- Saved jobs for freelancers
+- Client invitations to specific freelancers
 
 ## Project Structure
 
