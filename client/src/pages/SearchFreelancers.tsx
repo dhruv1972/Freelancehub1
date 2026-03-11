@@ -54,6 +54,23 @@ function SearchFreelancers() {
     }).catch(() => setInvitedFreelancerIds(new Set()))
   }, [inviteProjectId])
 
+  const handleInvite = async (freelancerId: string) => {
+    if (!inviteProjectId || !user?._id || user?.userType !== 'client') return
+    setInvitingId(freelancerId)
+    try {
+      await api.post('/invitations', { projectId: inviteProjectId, clientId: user._id, freelancerId })
+      setInvitedFreelancerIds(prev => {
+        const next = new Set(prev)
+        next.add(String(freelancerId))
+        return next
+      })
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to send invitation')
+    } finally {
+      setInvitingId(null)
+    }
+  }
+
   const inputStyle: React.CSSProperties = {
     width: '100%',
     height: 48,

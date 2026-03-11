@@ -30,7 +30,7 @@ const cardElementOptions = {
   },
 }
 
-function PaymentForm({ projectId, clientId, amount, projectTitle, onSuccess, onClose }: PaymentModalProps) {
+function PaymentForm({ projectId, clientId, amount, projectTitle, onSuccess }: PaymentModalProps) {
   const stripe = useStripe()
   const elements = useElements()
   const [loading, setLoading] = useState(false)
@@ -154,7 +154,7 @@ function PaymentModal({ projectId, amount, projectTitle, clientId, onSuccess, on
   )
 }
 
-function MockPaymentForm({ projectId, clientId, amount, projectTitle, onSuccess, onClose }: PaymentModalProps) {
+function MockPaymentForm({ projectId, clientId, amount, projectTitle, onSuccess }: PaymentModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
